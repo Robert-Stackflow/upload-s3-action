@@ -53,19 +53,17 @@ function upload(params) {
 }
 
 function run() {
-  const sourceDir = slash(path.join(process.cwd(), SOURCE_DIR));
   return Promise.all(
     paths.map((p) => {
       const fileStream = fs.createReadStream(p.path);
-      const bucketPath = slash(
-        path.join(destinationDir, slash(path.relative(sourceDir, p.path)))
-      );
+      const filename = slash(p.path).split('/').pop();
+      const bucketPath = slash(path.join(destinationDir, filename));
       const params = {
         Bucket: BUCKET,
         ACL: 'public-read',
         Body: fileStream,
         Key: bucketPath,
-        ContentType: lookup(p.path) || 'text/plain',
+        ContentType: lookup(p.path) || 'application/octet-stream',
       };
       return upload(params);
     })
