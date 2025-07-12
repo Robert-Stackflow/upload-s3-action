@@ -28895,6 +28895,7 @@ const shortid = __nccwpck_require__(794);
 const slash = (__nccwpck_require__(3433)/* ["default"] */ .Z);
 const klawSync = __nccwpck_require__(9036);
 const { lookup } = __nccwpck_require__(3583);
+const crypto = __nccwpck_require__(6113);
 
 const AWS_KEY_ID = core.getInput('aws_key_id', {
   required: true,
@@ -28930,31 +28931,60 @@ const paths = klawSync(SOURCE_DIR, {
   nodir: true,
 });
 
-function upload(params) {
-  return new Promise((resolve) => {
-    s3.upload(params, (err, data) => {
-      if (err) core.error(err);
-      core.info(`uploaded - ${data.Key}`);
-      core.info(`located - ${data.Location}`);
-      resolve(data.Location);
+function calculateFileSHA1(filePath) {
+  return new Promise((resolve, reject) => {
+    const hash = crypto.createHash('sha1');
+    const stream = fs.createReadStream(filePath);
+
+    stream.on('error', (err) => reject(err));
+    stream.on('data', (chunk) => hash.update(chunk));
+    stream.on('end', () => resolve(hash.digest('hex')));
+  });
+}
+
+function getRemoteSHA1(bucket, key) {
+  return new Promise((resolve, reject) => {
+    s3.headObject({ Bucket: bucket, Key: key }, (err, data) => {
+      if (err) {
+        if (err.code === 'NotFound') return resolve(null);
+        return reject(err);
+      }
+      const sha1 = data.Metadata?.sha1 || null;
+      resolve(sha1);
     });
   });
+}
+
+async function uploadWithSha1Check(localPath, bucketPath) {
+  const sha1 = await calculateFileSHA1(localPath);
+  const remoteSha1 = await getRemoteSHA1(BUCKET, bucketPath);
+
+  if (remoteSha1 && remoteSha1 === sha1) {
+    core.info(`skip upload (sha1 match) - ${bucketPath}`);
+    return `skipped://${bucketPath}`;
+  }
+
+  const fileStream = fs.createReadStream(localPath);
+  const params = {
+    Bucket: BUCKET,
+    ACL: 'public-read',
+    Body: fileStream,
+    Key: bucketPath,
+    ContentType: lookup(localPath) || 'application/octet-stream',
+    Metadata: {
+      sha1: sha1,
+    },
+  };
+
+  return upload(params);
 }
 
 function run() {
   return Promise.all(
     paths.map((p) => {
-      const fileStream = fs.createReadStream(p.path);
       const filename = slash(p.path).split('/').pop();
       const bucketPath = slash(path.join(destinationDir, filename));
-      const params = {
-        Bucket: BUCKET,
-        ACL: 'public-read',
-        Body: fileStream,
-        Key: bucketPath,
-        ContentType: lookup(p.path) || 'application/octet-stream',
-      };
-      return upload(params);
+      return uploadWithSha1Check(p.path, bucketPath);
     })
   );
 }
