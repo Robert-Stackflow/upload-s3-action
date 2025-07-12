@@ -57,9 +57,11 @@ function getRemoteSHA1(bucket, key) {
   return new Promise((resolve, reject) => {
     s3.headObject({ Bucket: bucket, Key: key }, (err, data) => {
       if (err) {
+        core.debug(`Error fetching metadata for ${key}: ${err.message}`);
         if (err.code === 'NotFound') return resolve(null);
         return reject(err);
       }
+      core.debug(`Fetched metadata for ${key}`);
       const sha1 = data.Metadata?.sha1 || null;
       resolve(sha1);
     });
@@ -91,6 +93,8 @@ function upload(params) {
 async function uploadWithSha1Check(localPath, bucketPath) {
   const sha1 = await calculateFileSHA1(localPath);
   const remoteSha1 = await getRemoteSHA1(BUCKET, bucketPath);
+  core.info(`to upload - ${localPath} with sha1 ${sha1}`);
+  core.info(`to upload to - ${bucketPath} with remote sha1 ${remoteSha1}`);
 
   if (remoteSha1 && remoteSha1 === sha1) {
     core.info(`skip upload (sha1 match) - ${bucketPath}`);
