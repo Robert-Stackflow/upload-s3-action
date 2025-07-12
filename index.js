@@ -42,9 +42,18 @@ const paths = klawSync(SOURCE_DIR, {
 });
 
 function upload(params) {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     s3.upload(params, (err, data) => {
-      if (err) core.error(err);
+      if (err) {
+        core.error(`Upload failed for ${params.Key}`);
+        core.error(err);
+        return reject(err);
+      }
+      if (!data || !data.Key) {
+        const msg = `Upload returned invalid response for ${params.Key}: ${JSON.stringify(data)}`;
+        core.error(msg);
+        return reject(new Error(msg));
+      }
       core.info(`uploaded - ${data.Key}`);
       core.info(`located - ${data.Location}`);
       resolve(data.Location);
