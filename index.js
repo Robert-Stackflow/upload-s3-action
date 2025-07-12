@@ -66,6 +66,28 @@ function getRemoteSHA1(bucket, key) {
   });
 }
 
+function upload(params) {
+  return new Promise((resolve, reject) => {
+    s3.upload(params, (err, data) => {
+      if (err) {
+        core.error(`Upload failed for ${params.Key}`);
+        core.error(err);
+        return reject(err);
+      }
+      if (!data || !data.Key) {
+        const msg = `Upload returned invalid response for ${
+          params.Key
+        }: ${JSON.stringify(data)}`;
+        core.error(msg);
+        return reject(new Error(msg));
+      }
+      core.info(`uploaded - ${data.Key}`);
+      core.info(`located - ${data.Location}`);
+      resolve(data.Location);
+    });
+  });
+}
+
 async function uploadWithSha1Check(localPath, bucketPath) {
   const sha1 = await calculateFileSHA1(localPath);
   const remoteSha1 = await getRemoteSHA1(BUCKET, bucketPath);
