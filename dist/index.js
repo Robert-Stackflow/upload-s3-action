@@ -28979,14 +28979,30 @@ function upload(params) {
   });
 }
 
+function printSha1Comparison(localPath, bucketPath, sha1, remoteSha1) {
+  const shortPath = path.relative(SOURCE_DIR, localPath);
+  const match = sha1 === remoteSha1;
+  const remoteDisplay = remoteSha1 || '(无)';
+  const statusText = match ? '匹配（跳过上传）' : '不匹配，将上传';
+
+  core.info(
+    [
+      '',
+      `[检查] ${shortPath}`,
+      `     ↳ 本地 SHA1:   ${sha1}`,
+      `     ↳ 远端 SHA1:   ${remoteDisplay} ${statusText}`,
+    ].join('\n')
+  );
+}
+
 async function uploadWithSha1Check(localPath, bucketPath) {
   const sha1 = await calculateFileSHA1(localPath);
   const remoteSha1 = await getRemoteSHA1(BUCKET, bucketPath);
-  core.info(`to upload - ${localPath} with sha1 ${sha1}`);
-  core.info(`to upload to - ${bucketPath} with remote sha1 ${remoteSha1}`);
+
+  printSha1Comparison(localPath, bucketPath, sha1, remoteSha1);
 
   if (remoteSha1 && remoteSha1 === sha1) {
-    core.info(`skip upload (sha1 match) - ${bucketPath}`);
+    core.info(`跳过上传：文件相同 -> ${bucketPath}`);
     return `skipped://${bucketPath}`;
   }
 
