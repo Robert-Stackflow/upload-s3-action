@@ -90,11 +90,11 @@ function upload(params) {
   });
 }
 
-function printSha1Comparison(localPath, bucketPath, sha1, remoteSha1) {
+function printSha1Comparison(localPath, sha1, remoteSha1) {
   const shortPath = path.relative(SOURCE_DIR, localPath);
   const match = sha1 === remoteSha1;
   const remoteDisplay = remoteSha1 || '(无)';
-  const statusText = match ? '匹配（跳过上传）' : '不匹配，将上传';
+  const statusText = match ? '匹配，跳过上传' : '不匹配，开始上传';
 
   core.info(
     [
@@ -113,7 +113,6 @@ async function uploadWithSha1Check(localPath, bucketPath) {
   printSha1Comparison(localPath, bucketPath, sha1, remoteSha1);
 
   if (remoteSha1 && remoteSha1 === sha1) {
-    core.info(`跳过上传：文件相同 -> ${bucketPath}`);
     return `skipped://${bucketPath}`;
   }
 
