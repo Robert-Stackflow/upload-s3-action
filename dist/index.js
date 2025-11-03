@@ -28926,7 +28926,7 @@ if (ENDPOINT) {
 }
 
 const s3 = new S3(s3options);
-const destinationDir = DESTINATION_DIR === '/' ? shortid() : DESTINATION_DIR;
+const destinationDir = DESTINATION_DIR;
 const paths = klawSync(SOURCE_DIR, {
   nodir: true,
 });
@@ -28999,7 +28999,7 @@ async function uploadWithSha1Check(localPath, bucketPath) {
   const sha1 = await calculateFileSHA1(localPath);
   const remoteSha1 = await getRemoteSHA1(BUCKET, bucketPath);
 
-  printSha1Comparison(localPath, bucketPath, sha1, remoteSha1);
+  printSha1Comparison(localPath, sha1, remoteSha1);
 
   if (remoteSha1 && remoteSha1 === sha1) {
     return `skipped://${bucketPath}`;
@@ -29023,8 +29023,8 @@ async function uploadWithSha1Check(localPath, bucketPath) {
 function run() {
   return Promise.all(
     paths.map((p) => {
-      const filename = slash(p.path).split('/').pop();
-      const bucketPath = slash(path.join(destinationDir, filename));
+      const relativePath = path.relative(SOURCE_DIR, p.path);
+      const bucketPath = slash(path.join(destinationDir, relativePath));
       return uploadWithSha1Check(p.path, bucketPath);
     })
   );
